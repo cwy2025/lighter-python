@@ -1,198 +1,215 @@
-# Lighter Python
+# Lighter交易所持仓监控系统
 
-Python SDK for Lighter
+一个使用Python和Rich库开发的Lighter交易所持仓监控程序，提供实时的持仓数据展示和WebSocket交易回报功能。
 
-## Requirements.
+## 功能特点
 
-Python 3.8+
+- 🚀 **实时监控**：每分钟自动刷新持仓数据
+- 💼 **投资组合**：显示总权益、未实现盈亏等关键指标
+- 📊 **持仓详情**：多持仓信息展示，包含合约、方向、数量、价格等
+- 📡 **实时数据**：WebSocket订阅交易回报和持仓更新
+- 🎨 **美观界面**：基于Rich库的现代化终端界面
+- 🔄 **自动重连**：网络断开自动重连机制
+- 🛡️ **错误处理**：完善的错误处理和日志记录
 
-## Installation & Usage
-### pip install
+## 系统要求
 
-If the python package is hosted on a repository, you can install directly using:
+- Python 3.8+
+- Linux/macOS/Windows
+- 终端支持颜色显示
 
-```sh
-pip install git+https://github.com/elliottech/lighter-python.git
+## 安装
+
+1. 克隆或下载项目文件
+2. 安装依赖包：
+
+```bash
+pip install -r requirements.txt
 ```
 
+## 配置
 
-Then import the package:
+1. 复制环境变量示例文件：
+
+```bash
+cp .env.example .env
+```
+
+2. 编辑 `.env` 文件，填入你的Lighter API凭证：
+
+```env
+LIGHTER_API_KEY=your_api_key_here
+LIGHTER_API_SECRET=your_api_secret_here
+```
+
+### 配置说明
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `LIGHTER_API_KEY` | Lighter API密钥 | 必填 |
+| `LIGHTER_API_SECRET` | Lighter API密钥密码 | 必填 |
+| `LIGHTER_BASE_URL` | REST API端点 | https://api.lighter.xyz |
+| `LIGHTER_WS_URL` | WebSocket端点 | wss://ws.lighter.xyz |
+| `REFRESH_INTERVAL` | 数据刷新间隔（秒） | 60 |
+| `DISPLAY_PRECISION` | 数值显示精度 | 6 |
+
+## 使用方法
+
+### 正常模式（需要API密钥）
+
+```bash
+python main.py
+```
+
+### 演示模式（使用模拟数据）
+
+```bash
+python main.py --mock
+```
+
+### 命令行参数
+
+- `--mock`: 使用模拟数据模式，无需API密钥
+- `--config PATH`: 指定配置文件路径
+
+## 界面说明
+
+监控界面分为以下几个部分：
+
+### 📊 投资组合面板
+- **总权益**：账户总资产价值
+- **未实现盈亏**：当前持仓的浮动盈亏
+- **盈亏率**：盈亏占总权益的百分比
+
+### 📈 持仓信息面板
+- **合约**：交易对名称
+- **方向**：多头(🟢)或空头(🔴)
+- **数量**：持仓数量
+- **入场价**：开仓平均价格
+- **标记价**：当前标记价格
+- **持仓价值**：当前持仓总价值
+- **未实现盈亏**：该持仓的浮动盈亏
+
+### 📡 实时消息面板
+显示最近的WebSocket消息，包括：
+- 交易数据更新
+- 持仓变化
+- 账户更新
+
+### ⚡ 状态信息面板
+- **API状态**：REST API连接状态
+- **WebSocket状态**：WebSocket连接状态
+- **刷新间隔**：数据刷新频率
+- **消息数量**：收到的实时消息数
+
+## API适配说明
+
+本程序是基于通用交易所API模式设计的框架。如需适配Lighter的具体API，请按以下步骤调整：
+
+### 1. 更新API端点
+
+在 `lighter_api.py` 中修改API端点URL：
+
 ```python
-import lighter
+def get_positions(self):
+    return self._make_request('GET', '/api/v1/positions')  # 修改为实际端点
 ```
 
-### Tests
+### 2. 调整签名算法
 
-Execute `pytest` to run the tests.
-
-## Getting Started
-
-Please follow the [installation procedure](#installation--usage) and then run the following:
+在 `_generate_signature` 方法中实现Lighter的具体签名算法：
 
 ```python
-
-import lighter
-import asyncio
-
-async def main():
-    client = lighter.ApiClient()
-    account_api = lighter.AccountApi(client)
-    account = await account_api.get_account(by="index", value="1")
-    print(account)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
+def _generate_signature(self, timestamp: int, method: str, path: str, body: str = '') -> str:
+    # 根据Lighter文档实现具体的签名算法
+    pass
 ```
 
-# Examples
-## [Read API Functions](examples/get_info.py)
-```sh
-python examples/get_info.py
+### 3. 适配WebSocket协议
+
+在 `websocket_client.py` 中调整WebSocket消息格式：
+
+```python
+def _authenticate(self):
+    # 根据Lighter WebSocket认证协议调整
+    pass
 ```
 
-## [Websocket Sync Order Books & Accounts](examples/ws.py)
-```sh
-python examples/ws.py
+### 4. 数据格式适配
+
+根据Lighter API返回的实际数据格式，调整数据解析逻辑。
+
+## 项目结构
+
+```
+lighter-monitor/
+├── main.py              # 主程序入口
+├── config.py            # 配置管理
+├── lighter_api.py       # REST API客户端
+├── websocket_client.py  # WebSocket客户端
+├── display.py           # Rich界面显示
+├── requirements.txt     # 依赖包列表
+├── .env.example        # 环境变量示例
+└── README.md           # 说明文档
 ```
 
-## [Create & Cancel Orders](examples/create_cancel_order.py)
-```sh
-python examples/create_cancel_order.py
-```
+## 故障排除
 
-## Documentation for API Endpoints
+### 常见问题
 
-All URIs are relative to *https://mainnet.zklighter.elliot.ai*
+1. **API密钥错误**
+   - 检查 `.env` 文件中的API密钥是否正确
+   - 确保API密钥有足够的权限
 
-Class | Method | HTTP request | Description
------------- | ------------- | ------------- | -------------
-*AccountApi* | [**account**](docs/AccountApi.md#account) | **GET** /api/v1/account | account
-*AccountApi* | [**accounts_by_l1_address**](docs/AccountApi.md#accounts_by_l1_address) | **GET** /api/v1/accountsByL1Address | accountsByL1Address
-*AccountApi* | [**apikeys**](docs/AccountApi.md#apikeys) | **GET** /api/v1/apikeys | apikeys
-*AccountApi* | [**pnl**](docs/AccountApi.md#pnl) | **GET** /api/v1/pnl | pnl
-*AccountApi* | [**public_pools**](docs/AccountApi.md#public_pools) | **GET** /api/v1/publicPools | publicPools
-*BlockApi* | [**block**](docs/BlockApi.md#block) | **GET** /api/v1/block | block
-*BlockApi* | [**blocks**](docs/BlockApi.md#blocks) | **GET** /api/v1/blocks | blocks
-*BlockApi* | [**current_height**](docs/BlockApi.md#current_height) | **GET** /api/v1/currentHeight | currentHeight
-*CandlestickApi* | [**candlesticks**](docs/CandlestickApi.md#candlesticks) | **GET** /api/v1/candlesticks | candlesticks
-*CandlestickApi* | [**fundings**](docs/CandlestickApi.md#fundings) | **GET** /api/v1/fundings | fundings
-*OrderApi* | [**account_inactive_orders**](docs/OrderApi.md#account_inactive_orders) | **GET** /api/v1/accountInactiveOrders | accountInactiveOrders
-*OrderApi* | [**exchange_stats**](docs/OrderApi.md#exchange_stats) | **GET** /api/v1/exchangeStats | exchangeStats
-*OrderApi* | [**order_book_details**](docs/OrderApi.md#order_book_details) | **GET** /api/v1/orderBookDetails | orderBookDetails
-*OrderApi* | [**order_book_orders**](docs/OrderApi.md#order_book_orders) | **GET** /api/v1/orderBookOrders | orderBookOrders
-*OrderApi* | [**order_books**](docs/OrderApi.md#order_books) | **GET** /api/v1/orderBooks | orderBooks
-*OrderApi* | [**recent_trades**](docs/OrderApi.md#recent_trades) | **GET** /api/v1/recentTrades | recentTrades
-*OrderApi* | [**trades**](docs/OrderApi.md#trades) | **GET** /api/v1/trades | trades
-*RootApi* | [**info**](docs/RootApi.md#info) | **GET** /info | info
-*RootApi* | [**status**](docs/RootApi.md#status) | **GET** / | status
-*TransactionApi* | [**account_txs**](docs/TransactionApi.md#account_txs) | **GET** /api/v1/accountTxs | accountTxs
-*TransactionApi* | [**block_txs**](docs/TransactionApi.md#block_txs) | **GET** /api/v1/blockTxs | blockTxs
-*TransactionApi* | [**deposit_history**](docs/TransactionApi.md#deposit_history) | **GET** /api/v1/deposit/history | deposit_history
-*TransactionApi* | [**next_nonce**](docs/TransactionApi.md#next_nonce) | **GET** /api/v1/nextNonce | nextNonce
-*TransactionApi* | [**send_tx**](docs/TransactionApi.md#send_tx) | **POST** /api/v1/sendTx | sendTx
-*TransactionApi* | [**send_tx_batch**](docs/TransactionApi.md#send_tx_batch) | **POST** /api/v1/sendTxBatch | sendTxBatch
-*TransactionApi* | [**tx**](docs/TransactionApi.md#tx) | **GET** /api/v1/tx | tx
-*TransactionApi* | [**tx_from_l1_tx_hash**](docs/TransactionApi.md#tx_from_l1_tx_hash) | **GET** /api/v1/txFromL1TxHash | txFromL1TxHash
-*TransactionApi* | [**txs**](docs/TransactionApi.md#txs) | **GET** /api/v1/txs | txs
-*TransactionApi* | [**withdraw_history**](docs/TransactionApi.md#withdraw_history) | **GET** /api/v1/withdraw/history | withdraw_history
+2. **网络连接问题**
+   - 检查网络连接
+   - 确认防火墙设置
+   - 尝试使用 `--mock` 模式测试
 
+3. **显示问题**
+   - 确保终端支持颜色显示
+   - 调整终端窗口大小
+   - 检查终端是否支持UTF-8编码
 
-## Documentation For Models
+### 日志输出
 
- - [Account](docs/Account.md)
- - [AccountApiKeys](docs/AccountApiKeys.md)
- - [AccountMarketStats](docs/AccountMarketStats.md)
- - [AccountMetadata](docs/AccountMetadata.md)
- - [AccountPnL](docs/AccountPnL.md)
- - [AccountPosition](docs/AccountPosition.md)
- - [AccountStats](docs/AccountStats.md)
- - [ApiKey](docs/ApiKey.md)
- - [Block](docs/Block.md)
- - [Blocks](docs/Blocks.md)
- - [BridgeSupportedNetwork](docs/BridgeSupportedNetwork.md)
- - [Candlestick](docs/Candlestick.md)
- - [Candlesticks](docs/Candlesticks.md)
- - [ContractAddress](docs/ContractAddress.md)
- - [CurrentHeight](docs/CurrentHeight.md)
- - [Cursor](docs/Cursor.md)
- - [DepositHistory](docs/DepositHistory.md)
- - [DepositHistoryItem](docs/DepositHistoryItem.md)
- - [DetailedAccount](docs/DetailedAccount.md)
- - [DetailedAccounts](docs/DetailedAccounts.md)
- - [DetailedCandlestick](docs/DetailedCandlestick.md)
- - [EnrichedTx](docs/EnrichedTx.md)
- - [ExchangeStats](docs/ExchangeStats.md)
- - [Funding](docs/Funding.md)
- - [Fundings](docs/Fundings.md)
- - [L1ProviderInfo](docs/L1ProviderInfo.md)
- - [Liquidation](docs/Liquidation.md)
- - [MarketInfo](docs/MarketInfo.md)
- - [NextNonce](docs/NextNonce.md)
- - [Order](docs/Order.md)
- - [OrderBook](docs/OrderBook.md)
- - [OrderBookDepth](docs/OrderBookDepth.md)
- - [OrderBookDetail](docs/OrderBookDetail.md)
- - [OrderBookDetails](docs/OrderBookDetails.md)
- - [OrderBookOrders](docs/OrderBookOrders.md)
- - [OrderBookStats](docs/OrderBookStats.md)
- - [OrderBooks](docs/OrderBooks.md)
- - [Orders](docs/Orders.md)
- - [PnLEntry](docs/PnLEntry.md)
- - [PositionFunding](docs/PositionFunding.md)
- - [PriceLevel](docs/PriceLevel.md)
- - [PublicPool](docs/PublicPool.md)
- - [PublicPoolInfo](docs/PublicPoolInfo.md)
- - [PublicPoolShare](docs/PublicPoolShare.md)
- - [PublicPools](docs/PublicPools.md)
- - [ReqGetAccount](docs/ReqGetAccount.md)
- - [ReqGetAccountApiKeys](docs/ReqGetAccountApiKeys.md)
- - [ReqGetAccountByL1Address](docs/ReqGetAccountByL1Address.md)
- - [ReqGetAccountInactiveOrders](docs/ReqGetAccountInactiveOrders.md)
- - [ReqGetAccountPnL](docs/ReqGetAccountPnL.md)
- - [ReqGetAccountTxs](docs/ReqGetAccountTxs.md)
- - [ReqGetBlock](docs/ReqGetBlock.md)
- - [ReqGetBlockTxs](docs/ReqGetBlockTxs.md)
- - [ReqGetByAccount](docs/ReqGetByAccount.md)
- - [ReqGetCandlesticks](docs/ReqGetCandlesticks.md)
- - [ReqGetDepositHistory](docs/ReqGetDepositHistory.md)
- - [ReqGetFundings](docs/ReqGetFundings.md)
- - [ReqGetL1Tx](docs/ReqGetL1Tx.md)
- - [ReqGetLatestDeposit](docs/ReqGetLatestDeposit.md)
- - [ReqGetNextNonce](docs/ReqGetNextNonce.md)
- - [ReqGetOrderBookDetails](docs/ReqGetOrderBookDetails.md)
- - [ReqGetOrderBookOrders](docs/ReqGetOrderBookOrders.md)
- - [ReqGetOrderBooks](docs/ReqGetOrderBooks.md)
- - [ReqGetPublicPools](docs/ReqGetPublicPools.md)
- - [ReqGetRangeWithCursor](docs/ReqGetRangeWithCursor.md)
- - [ReqGetRangeWithIndex](docs/ReqGetRangeWithIndex.md)
- - [ReqGetRangeWithIndexSortable](docs/ReqGetRangeWithIndexSortable.md)
- - [ReqGetRecentTrades](docs/ReqGetRecentTrades.md)
- - [ReqGetTrades](docs/ReqGetTrades.md)
- - [ReqGetTx](docs/ReqGetTx.md)
- - [ReqGetWithdrawHistory](docs/ReqGetWithdrawHistory.md)
- - [ResultCode](docs/ResultCode.md)
- - [SimpleOrder](docs/SimpleOrder.md)
- - [Status](docs/Status.md)
- - [SubAccounts](docs/SubAccounts.md)
- - [Ticker](docs/Ticker.md)
- - [Trade](docs/Trade.md)
- - [Trades](docs/Trades.md)
- - [Tx](docs/Tx.md)
- - [TxHash](docs/TxHash.md)
- - [TxHashes](docs/TxHashes.md)
- - [Txs](docs/Txs.md)
- - [ValidatorInfo](docs/ValidatorInfo.md)
- - [WithdrawHistory](docs/WithdrawHistory.md)
- - [WithdrawHistoryItem](docs/WithdrawHistoryItem.md)
- - [ZkLighterInfo](docs/ZkLighterInfo.md)
+程序会输出详细的运行日志，包括：
+- API请求状态
+- WebSocket连接状态
+- 数据更新情况
+- 错误信息
 
+## 开发说明
 
-[//]: # (<a id="documentation-for-authorization"></a>)
+### 模块化设计
 
-[//]: # (## Documentation For Authorization)
+- `config.py`: 配置管理，支持环境变量
+- `lighter_api.py`: REST API封装，包含认证和请求处理
+- `websocket_client.py`: WebSocket客户端，支持自动重连
+- `display.py`: Rich界面组件，模块化布局设计
+- `main.py`: 主程序逻辑，集成所有模块
 
-[//]: # ()
-[//]: # (Endpoints do not require authorization.)
+### 扩展功能
+
+可以轻松扩展以下功能：
+- 价格预警
+- 交易记录导出
+- 多账户监控
+- 移动端推送通知
+
+## 注意事项
+
+- 本程序仅供监控使用，不包含交易功能
+- 请妥善保管API密钥，不要泄露给他人
+- 建议在正式使用前先使用模拟模式测试
+- 根据Lighter的实际API文档调整相关配置
+
+## 许可证
+
+MIT License
+
+## 支持
+
+如有问题或建议，请创建Issue或联系开发者。
 
 

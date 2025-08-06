@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+from collections import deque
 
 from rich.console import Console
 from rich.table import Table
@@ -12,6 +13,8 @@ from rich.align import Align
 from rich.columns import Columns
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import box
+from rich.console import Group
+from rich.rule import Rule
 
 from config import config
 
@@ -24,29 +27,66 @@ class LighterDisplay:
         self.layout = Layout()
         self.live = None
         self.last_update = None
+        
+        # 日志管理
+        self.logs = deque(maxlen=1000)  # 最多保存1000条日志
+        self.log_display_lines = 20     # 显示最近20行日志
+        
+        # WebSocket消息（用于状态显示）
         self.ws_messages = []
-        self.max_ws_messages = 10
+        self.max_ws_messages = 5
         
         # 设置布局
         self._setup_layout()
     
     def _setup_layout(self):
-        """设置界面布局"""
+        """设置界面布局 - 上半部分监控数据，下半部分日志"""
         self.layout.split_column(
             Layout(name="header", size=3),
-            Layout(name="main", ratio=1),
-            Layout(name="footer", size=5)
+            Layout(name="main", ratio=3),      # 上半部分：监控数据
+            Layout(name="logs", ratio=2)       # 下半部分：日志展示
         )
         
+        # 上半部分分为左右两列
         self.layout["main"].split_row(
-            Layout(name="portfolio", ratio=1),
-            Layout(name="positions", ratio=2)
+            Layout(name="portfolio", ratio=1),   # 左：投资组合
+            Layout(name="positions", ratio=2)    # 右：持仓信息
         )
-        
-        self.layout["footer"].split_row(
-            Layout(name="websocket", ratio=1),
-            Layout(name="status", ratio=1)
-        )
+    
+    def add_log(self, level: str, message: str, category: str = "SYSTEM"):
+        """添加日志"""
+        timestamp = datetime.now()
+        log_entry = {
+            'timestamp': timestamp,
+            'level': level.upper(),
+            'category': category.upper(),
+            'message': message
+        }
+        self.logs.append(log_entry)
+    
+    def _get_level_color(self, level: str) -> str:
+        """获取日志级别对应的颜色"""
+        color_map = {
+            'DEBUG': 'dim white',
+            'INFO': 'blue',
+            'SUCCESS': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'bold red'
+        }
+        return color_map.get(level.upper(), 'white')
+    
+    def _get_category_color(self, category: str) -> str:
+        """获取日志分类对应的颜色"""
+        color_map = {
+            'SYSTEM': 'cyan',
+            'API': 'blue',
+            'WEBSOCKET': 'green',
+            'TRADING': 'yellow',
+            'ERROR': 'red',
+            'DATA': 'magenta'
+        }
+        return color_map.get(category.upper(), 'white')
     
     def _create_header(self) -> Panel:
         """创建头部面板"""
@@ -87,6 +127,8 @@ class LighterDisplay:
 [bold]未实现盈亏:[/bold] [{pnl_color}]{pnl_symbol}{unrealized_pnl:,.{config.DISPLAY_PRECISION}f}[/{pnl_color}] USDT
 
 [bold]盈亏率:[/bold] [{pnl_color}]{(unrealized_pnl/total_equity*100):+.2f}%[/{pnl_color}]
+
+[dim]刷新间隔: {config.REFRESH_INTERVAL}秒[/dim]
         """.strip()
         
         return Panel(
@@ -148,68 +190,58 @@ class LighterDisplay:
             box=box.ROUNDED
         )
     
-    def _create_websocket_panel(self) -> Panel:
-        """创建WebSocket消息面板"""
-        if not self.ws_messages:
-            content = "[dim]暂无实时消息[/dim]"
+    def _create_logs_panel(self) -> Panel:
+        """创建日志面板"""
+        if not self.logs:
+            content = Text("暂无日志信息", style="dim")
         else:
-            messages = []
-            for msg in self.ws_messages[-self.max_ws_messages:]:
-                timestamp = datetime.fromtimestamp(msg['timestamp']).strftime("%H:%M:%S")
-                channel = msg.get('channel', 'unknown')
-                content_preview = str(msg.get('data', {}))[:50] + "..." if len(str(msg.get('data', {}))) > 50 else str(msg.get('data', {}))
-                messages.append(f"[dim]{timestamp}[/dim] [{self._get_channel_color(channel)}]{channel}[/{self._get_channel_color(channel)}]: {content_preview}")
+            log_lines = []
             
-            content = "\n".join(messages)
+            # 获取最近的日志条目
+            recent_logs = list(self.logs)[-self.log_display_lines:]
+            
+            for log in recent_logs:
+                timestamp_str = log['timestamp'].strftime("%H:%M:%S")
+                level = log['level']
+                category = log['category']
+                message = log['message']
+                
+                level_color = self._get_level_color(level)
+                category_color = self._get_category_color(category)
+                
+                # 格式化日志行
+                log_line = Text()
+                log_line.append(f"[{timestamp_str}] ", style="dim")
+                log_line.append(f"{level:<8}", style=level_color)
+                log_line.append(f"[{category}] ", style=category_color)
+                log_line.append(message)
+                
+                log_lines.append(log_line)
+            
+            content = Group(*log_lines)
+        
+        # 添加状态信息
+        api_status_text = "🟢 API已连接" if hasattr(self, '_api_status') and self._api_status else "🔴 API未连接"
+        ws_status_text = "🟢 WS已连接" if hasattr(self, '_ws_status') and self._ws_status else "🔴 WS未连接"
+        
+        status_line = Text()
+        status_line.append(f"{api_status_text} | {ws_status_text} | ", style="dim")
+        status_line.append(f"日志条数: {len(self.logs)}", style="cyan")
+        
+        if isinstance(content, Text) and content.plain == "暂无日志信息":
+            panel_content = content
+        else:
+            panel_content = Group(
+                content,
+                Rule(style="dim"),
+                status_line
+            )
         
         return Panel(
-            content,
-            title="📡 实时消息",
+            panel_content,
+            title="📋 系统日志 (实时滚动)",
             border_style="green",
             box=box.ROUNDED
-        )
-    
-    def _get_channel_color(self, channel: str) -> str:
-        """获取频道颜色"""
-        color_map = {
-            'trades': 'yellow',
-            'positions': 'cyan', 
-            'orders': 'magenta',
-            'account': 'blue'
-        }
-        return color_map.get(channel, 'white')
-    
-    def _create_status_panel(self, api_status: bool, ws_status: bool) -> Panel:
-        """创建状态面板"""
-        api_indicator = "🟢 已连接" if api_status else "🔴 未连接"
-        ws_indicator = "🟢 已连接" if ws_status else "🔴 未连接"
-        
-        refresh_interval = config.REFRESH_INTERVAL
-        
-        content = f"""
-[bold]API状态:[/bold] {api_indicator}
-[bold]WebSocket状态:[/bold] {ws_indicator}
-[bold]刷新间隔:[/bold] {refresh_interval}秒
-[bold]消息数量:[/bold] {len(self.ws_messages)}
-        """.strip()
-        
-        return Panel(
-            content,
-            title="⚡ 状态信息",
-            border_style="blue",
-            box=box.ROUNDED
-        )
-    
-    def _create_footer(self) -> Panel:
-        """创建底部面板"""
-        content = Text.from_markup(
-            "[dim]按 Ctrl+C 退出 | 数据来源: Lighter交易所 | 刷新频率: 每分钟一次[/dim]"
-        )
-        
-        return Panel(
-            Align.center(content),
-            border_style="dim blue",
-            box=box.SIMPLE
         )
     
     def update_display(self, portfolio_data: Dict[str, Any], 
@@ -218,23 +250,28 @@ class LighterDisplay:
                       ws_status: bool = True):
         """更新显示内容"""
         self.last_update = time.time()
+        self._api_status = api_status
+        self._ws_status = ws_status
         
         # 更新各个面板
         self.layout["header"].update(self._create_header())
         self.layout["portfolio"].update(self._create_portfolio_panel(portfolio_data))
         self.layout["positions"].update(self._create_positions_panel(positions_data))
-        self.layout["websocket"].update(self._create_websocket_panel())
-        self.layout["status"].update(self._create_status_panel(api_status, ws_status))
-        # self.layout["footer"].update(self._create_footer())
+        self.layout["logs"].update(self._create_logs_panel())
     
     def add_websocket_message(self, message: Dict[str, Any]):
-        """添加WebSocket消息"""
+        """添加WebSocket消息并记录到日志"""
         message['timestamp'] = time.time()
         self.ws_messages.append(message)
         
         # 保持消息数量在限制内
         if len(self.ws_messages) > self.max_ws_messages * 2:
             self.ws_messages = self.ws_messages[-self.max_ws_messages:]
+        
+        # 添加到日志
+        channel = message.get('channel', 'unknown')
+        data_preview = str(message.get('data', {}))[:100]
+        self.add_log("INFO", f"收到{channel}消息: {data_preview}", "WEBSOCKET")
     
     def start_live_display(self):
         """启动实时显示"""
@@ -242,7 +279,7 @@ class LighterDisplay:
             self.live = Live(
                 self.layout,
                 console=self.console,
-                refresh_per_second=1,
+                refresh_per_second=2,  # 提高刷新率以便更好地显示日志滚动
                 screen=True
             )
         return self.live
@@ -255,6 +292,7 @@ class LighterDisplay:
     
     def show_error(self, error_message: str):
         """显示错误信息"""
+        self.add_log("ERROR", error_message, "SYSTEM")
         error_panel = Panel(
             f"[red]错误: {error_message}[/red]",
             title="❌ 系统错误",
@@ -264,6 +302,7 @@ class LighterDisplay:
     
     def show_loading(self, message: str = "正在加载数据..."):
         """显示加载状态"""
+        self.add_log("INFO", message, "SYSTEM")
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -283,11 +322,13 @@ class LighterDisplay:
 • 多持仓信息监控
 • WebSocket实时交易数据
 • 自动刷新(每分钟一次)
+• 实时日志滚动显示
 
 [green]使用说明:[/green]
 • 请确保已配置API密钥
 • 按 Ctrl+C 可退出程序
 • 数据每分钟自动刷新一次
+• 下方日志区域实时显示系统状态
 
 [dim]开始监控...[/dim]
             """.strip(),
@@ -296,3 +337,8 @@ class LighterDisplay:
             box=box.DOUBLE
         )
         self.console.print(startup_panel)
+        
+        # 添加启动日志
+        self.add_log("SUCCESS", "Lighter监控系统启动成功", "SYSTEM")
+        self.add_log("INFO", f"刷新间隔: {config.REFRESH_INTERVAL}秒", "SYSTEM")
+        self.add_log("INFO", f"显示精度: {config.DISPLAY_PRECISION}位小数", "SYSTEM")

@@ -1,8 +1,10 @@
-# Lighter交易所持仓监控系统
+# 🚀 Lighter交易所持仓监控系统
 
-一个使用Python和Rich库开发的Lighter交易所持仓监控程序，提供实时的持仓数据展示、WebSocket交易回报和**实时日志滚动**功能。
+一个基于Python的Lighter交易所持仓监控程序，具备Rich界面、WebSocket实时数据订阅和实时日志滚动功能。
 
-## 功能特点
+![监控界面预览](preview.png)
+
+## ✨ 功能特点
 
 - 🚀 **实时监控**：每分钟自动刷新持仓数据
 - 💼 **投资组合**：显示总权益、未实现盈亏等关键指标
@@ -12,269 +14,262 @@
 - 📋 **日志滚动**：下半部分实时滚动显示系统日志，支持多级别、多分类日志
 - 🔄 **自动重连**：网络断开自动重连机制
 - 🛡️ **错误处理**：完善的错误处理和日志记录
+- ⚡ **异步API**：使用Lighter官方异步API客户端，性能更佳
+- 🧪 **测试网络**：支持主网和测试网络切换
+- 🎯 **账户管理**：支持多账户ID配置
 
-## 系统要求
+## 📋 系统要求
 
 - Python 3.8+
 - Linux/macOS/Windows
-- 终端支持颜色显示
+- 网络连接
 
-## 安装
+## 🔧 安装
 
-1. 克隆或下载项目文件
-2. 安装依赖包：
+### 1. 克隆项目
+```bash
+git clone <repository-url>
+cd lighter-monitor
+```
 
+### 2. 安装依赖
 ```bash
 pip install -r requirements.txt
 ```
 
-## 配置
-
-1. 复制环境变量示例文件：
-
+### 3. 配置环境变量
 ```bash
 cp .env.example .env
 ```
 
-2. 编辑 `.env` 文件，填入你的Lighter API凭证：
+编辑 `.env` 文件，配置你的API密钥和设置：
 
 ```env
+# API配置
 LIGHTER_API_KEY=your_api_key_here
 LIGHTER_API_SECRET=your_api_secret_here
+LIGHTER_ACCOUNT_ID=1
+
+# 网络选择
+LIGHTER_USE_TESTNET=false
+LIGHTER_BASE_URL=https://mainnet.zklighter.elliot.ai
+LIGHTER_TESTNET_URL=https://testnet.zklighter.elliot.ai
+
+# 监控配置
+REFRESH_INTERVAL=60
 ```
 
-### 配置说明
+## 🚀 使用方法
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `LIGHTER_API_KEY` | Lighter API密钥 | 必填 |
-| `LIGHTER_API_SECRET` | Lighter API密钥密码 | 必填 |
-| `LIGHTER_BASE_URL` | REST API端点 | https://api.lighter.xyz |
-| `LIGHTER_WS_URL` | WebSocket端点 | wss://ws.lighter.xyz |
-| `REFRESH_INTERVAL` | 数据刷新间隔（秒） | 60 |
-| `DISPLAY_PRECISION` | 数值显示精度 | 6 |
+### 快速演示
 
-## 使用方法
-
-### 正常模式（需要API密钥）
+想要立即体验？使用交互式脚本：
 
 ```bash
-python main.py
-```
-
-### 演示模式（使用模拟数据）
-
-```bash
-python main.py --mock
-```
-
-### 快速演示（无需依赖）
-
-```bash
-# 直接运行演示版本，无需安装任何依赖包
-python3 demo.py
-```
-
-### 交互式启动
-
-```bash
+chmod +x run_demo.sh
 ./run_demo.sh
 ```
 
-### 命令行参数
+选择演示模式，无需任何配置即可查看完整功能！
 
-- `--mock`: 使用模拟数据模式，无需API密钥
-- `--config PATH`: 指定配置文件路径
+### 程序启动
 
-## 界面说明
+#### 模拟模式（推荐开始）
+```bash
+python3 main.py --mock
+```
 
-监控界面采用分层布局设计：
+#### 实际模式
+```bash
+python3 main.py
+```
 
-### 📊 上半部分：核心监控数据
+#### 使用测试网络
+```bash
+python3 main.py --testnet
+```
 
-#### 左侧：投资组合面板
-- **总权益**：账户总资产价值
-- **未实现盈亏**：当前持仓的浮动盈亏
-- **盈亏率**：盈亏占总权益的百分比
-- **刷新间隔**：数据刷新频率显示
+#### 指定账户ID
+```bash
+python3 main.py --account-id 12345
+```
 
-#### 右侧：持仓信息面板
-- **合约**：交易对名称
-- **方向**：多头(🟢)或空头(🔴)
-- **数量**：持仓数量
-- **入场价**：开仓平均价格
-- **标记价**：当前标记价格
-- **未实现盈亏**：该持仓的浮动盈亏
+#### 组合参数
+```bash
+python3 main.py --testnet --account-id 12345
+```
 
-### 📋 下半部分：实时日志滚动区域
+### 可用参数
 
-**日志级别**：
-- 🔍 **DEBUG**：调试信息
-- ℹ️ **INFO**：一般信息
-- ✅ **SUCCESS**：成功操作
-- ⚠️ **WARNING**：警告信息
-- ❌ **ERROR**：错误信息
-- 🚨 **CRITICAL**：严重错误
+| 参数 | 说明 |
+|------|------|
+| `--mock` | 使用模拟数据模式，无需真实API |
+| `--testnet` | 使用测试网络 |
+| `--account-id` | 指定账户ID |
+| `--config` | 指定配置文件路径 |
 
-**日志分类**：
-- 🖥️ **SYSTEM**：系统相关日志
-- 🌐 **API**：API请求和响应
-- 🔌 **WEBSOCKET**：WebSocket连接和消息
-- 💹 **TRADING**：交易和持仓变化
-- 📊 **DATA**：数据处理和更新
+## 🖥️ 界面说明
 
-**功能特点**：
-- 自动滚动显示最新日志（默认显示最近20条）
-- 彩色图标和文字区分不同级别和分类
-- 实时显示连接状态和日志统计
-- 支持最多1000条日志历史记录
+监控界面分为两个主要部分：
 
-## 日志功能详解
+### 上半部分：核心监控数据
+- **投资组合面板**：显示总权益、未实现盈亏、盈亏率等
+- **持仓面板**：显示所有持仓的详细信息，包括合约、方向、数量、价格、盈亏等
 
-### 日志监控内容
+### 下半部分：实时日志滚动
+- **多级别日志**：DEBUG、INFO、SUCCESS、WARNING、ERROR、CRITICAL
+- **多分类日志**：SYSTEM、API、WEBSOCKET、DATA、TRADING
+- **实时滚动**：最新日志实时显示，历史日志自动滚动
+- **颜色编码**：不同级别和分类使用不同颜色和图标
 
-1. **系统状态**：启动、停止、初始化等系统级操作
-2. **API交互**：数据获取、请求状态、连接健康检查
-3. **WebSocket通信**：连接状态、消息接收、频道订阅
-4. **交易活动**：价格变化、持仓更新、PNL变化
-5. **数据处理**：数据刷新、计算结果、缓存操作
+## 📋 日志功能详情
+
+### 日志级别
+- 🔍 **DEBUG** - 调试信息（数据刷新、连接检查等）
+- ℹ️ **INFO** - 一般信息（价格变化、数据更新等）
+- ✅ **SUCCESS** - 成功操作（连接建立、数据获取成功等）
+- ⚠️ **WARNING** - 警告信息（连接断开、数据获取失败等）
+- ❌ **ERROR** - 错误信息（API调用失败、解析错误等）
+- 🚨 **CRITICAL** - 严重错误（系统初始化失败等）
+
+### 日志分类
+- 🖥️ **SYSTEM** - 系统级操作（启动、停止、线程管理等）
+- 🔗 **API** - API相关操作（请求、响应、连接状态等）
+- 🔌 **WEBSOCKET** - WebSocket相关（连接、订阅、消息等）
+- 📊 **DATA** - 数据相关（更新、变化、统计等）
+- 💹 **TRADING** - 交易相关（成交、持仓变化、PNL变化等）
 
 ### 日志优势
+- **实时监控**：即时查看系统运行状态
+- **问题诊断**：快速定位API连接、数据获取等问题
+- **性能分析**：观察数据刷新频率和响应时间
+- **操作记录**：完整记录所有系统操作和数据变化
 
-- **实时监控**：即时了解系统运行状态
-- **问题诊断**：快速定位API或连接问题
-- **交易跟踪**：实时查看交易和持仓变化
-- **性能监控**：观察数据刷新频率和响应时间
-- **状态管理**：清晰了解各组件连接状态
-
-## API适配说明
-
-本程序是基于通用交易所API模式设计的框架。如需适配Lighter的具体API，请按以下步骤调整：
-
-### 1. 更新API端点
-
-在 `lighter_api.py` 中修改API端点URL：
-
-```python
-def get_positions(self):
-    return self._make_request('GET', '/api/v1/positions')  # 修改为实际端点
-```
-
-### 2. 调整签名算法
-
-在 `_generate_signature` 方法中实现Lighter的具体签名算法：
-
-```python
-def _generate_signature(self, timestamp: int, method: str, path: str, body: str = '') -> str:
-    # 根据Lighter文档实现具体的签名算法
-    pass
-```
-
-### 3. 适配WebSocket协议
-
-在 `websocket_client.py` 中调整WebSocket消息格式：
-
-```python
-def _authenticate(self):
-    # 根据Lighter WebSocket认证协议调整
-    pass
-```
-
-### 4. 数据格式适配
-
-根据Lighter API返回的实际数据格式，调整数据解析逻辑。
-
-## 项目结构
+## 🗂️ 项目结构
 
 ```
 lighter-monitor/
-├── main.py              # 主程序（完整功能，需要依赖包）
-├── demo.py              # 演示程序（无需依赖，包含日志滚动）
-├── config.py            # 配置管理
-├── lighter_api.py       # REST API客户端
+├── main.py              # 主程序入口
+├── lighter_api.py       # Lighter异步API客户端
 ├── websocket_client.py  # WebSocket客户端
-├── display.py           # Rich界面显示（含日志组件）
+├── display.py           # Rich界面显示
+├── config.py            # 配置管理
+├── demo.py              # 演示版本（无依赖）
+├── run_demo.sh          # 交互式启动脚本
 ├── requirements.txt     # 依赖包列表
-├── .env.example        # 环境变量示例
-├── run_demo.sh         # 快速启动脚本
-└── README.md           # 详细说明文档
+├── .env.example         # 环境变量模板
+└── README.md            # 项目文档
 ```
 
-## 故障排除
+## ⚙️ 配置选项
+
+### 环境变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `LIGHTER_API_KEY` | API密钥 | 空 |
+| `LIGHTER_API_SECRET` | API密钥 | 空 |
+| `LIGHTER_ACCOUNT_ID` | 账户ID | 1 |
+| `LIGHTER_USE_TESTNET` | 使用测试网络 | false |
+| `LIGHTER_BASE_URL` | 主网API端点 | https://mainnet.zklighter.elliot.ai |
+| `LIGHTER_TESTNET_URL` | 测试网API端点 | https://testnet.zklighter.elliot.ai |
+| `REFRESH_INTERVAL` | 刷新间隔（秒） | 60 |
+| `DISPLAY_PRECISION` | 显示精度 | 6 |
+| `TIMEOUT` | 请求超时（秒） | 30 |
+
+### API适配说明
+
+本程序使用Lighter官方Python SDK：
+- **异步架构**：基于`asyncio`和`aiohttp`，提供更好的性能
+- **自动重试**：内置重试机制和错误处理
+- **类型安全**：使用Pydantic进行数据验证
+- **官方支持**：与Lighter API完全兼容
+
+> **注意**：由于Lighter的API需要特定的认证方式，如果没有有效的API密钥，程序会自动切换到模拟模式进行演示。
+
+## 🐛 故障排除
 
 ### 常见问题
 
-1. **API密钥错误**
-   - 检查 `.env` 文件中的API密钥是否正确
-   - 确保API密钥有足够的权限
-   - 查看日志区域的API错误信息
-
-2. **网络连接问题**
+1. **无法连接API**
    - 检查网络连接
-   - 确认防火墙设置
-   - 观察日志中的WebSocket连接状态
-   - 尝试使用 `--mock` 模式测试
+   - 验证API密钥是否正确
+   - 确认账户ID是否有效
+   - 尝试使用`--testnet`参数
 
-3. **显示问题**
-   - 确保终端支持颜色显示
-   - 调整终端窗口大小（建议至少100列宽）
-   - 检查终端是否支持UTF-8编码
+2. **依赖包安装失败**
+   ```bash
+   # 使用虚拟环境
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **界面显示异常**
+   - 确保终端支持Unicode字符
+   - 调整终端窗口大小
+   - 检查终端颜色支持
+
+4. **模拟模式运行**
+   ```bash
+   python3 main.py --mock
+   ```
 
 ### 日志分析
 
-程序会输出详细的运行日志，包括：
-- **API请求状态**：成功/失败状态，响应时间
-- **WebSocket连接状态**：连接建立、断开、重连
-- **数据更新情况**：数据获取、处理、更新频率
-- **错误信息**：详细的错误描述和分类
-- **性能指标**：刷新次数、运行时间等
+通过观察实时日志，你可以：
+- 📊 **监控数据流**：查看API调用频率和成功率
+- 🔍 **诊断连接**：观察WebSocket连接状态
+- 💹 **跟踪变化**：实时查看价格和PNL变化
+- 🚨 **发现问题**：及时发现错误和警告
 
-## 开发说明
+## 🔒 安全说明
 
-### 模块化设计
+- ✅ API密钥存储在本地`.env`文件中
+- ✅ 不会向第三方服务发送任何密钥信息
+- ✅ 支持只读API权限
+- ✅ 可在测试网络上安全测试
 
-- `config.py`: 配置管理，支持环境变量
-- `lighter_api.py`: REST API封装，包含认证和请求处理
-- `websocket_client.py`: WebSocket客户端，支持自动重连
-- `display.py`: Rich界面组件，模块化布局设计，包含日志管理
-- `main.py`: 主程序逻辑，集成所有模块
-
-### 日志系统设计
-
-- **deque数据结构**：高效的FIFO队列，自动限制历史记录数量
-- **多级别分类**：支持6个级别和6个分类的日志
-- **实时滚动**：自动显示最新日志，支持自定义显示行数
-- **彩色显示**：不同级别和分类使用不同颜色和图标
-- **性能优化**：批量更新，避免过多的终端重绘
+## 📝 开发说明
 
 ### 扩展功能
 
-可以轻松扩展以下功能：
-- 价格预警（基于日志系统）
-- 交易记录导出
-- 日志文件保存
-- 多账户监控
-- 移动端推送通知
-- 日志过滤和搜索
+你可以轻松扩展以下功能：
+- 添加更多持仓指标
+- 自定义告警规则
+- 导出数据到文件
+- 集成更多交易所
 
-## 注意事项
+### 异步编程
 
-- 本程序仅供监控使用，不包含交易功能
-- 请妥善保管API密钥，不要泄露给他人
-- 建议在正式使用前先使用模拟模式测试
-- 根据Lighter的实际API文档调整相关配置
-- 日志功能会增加少量内存使用，但设有自动清理机制
+程序大量使用异步编程：
+```python
+# API调用示例
+async def get_positions():
+    result = await account_api.account(by="index", value="1")
+    return result.to_dict()
+```
 
-## 许可证
+### 日志集成
+
+添加自定义日志：
+```python
+# 在你的代码中
+display.add_log("INFO", "自定义消息", "CUSTOM")
+```
+
+## 📄 许可证
 
 MIT License
 
-## 支持
+## 🎯 主要特性总结
 
-如有问题或建议，请创建Issue或联系开发者。
+✨ **实时监控** | 📊 **数据可视化** | 🔄 **自动刷新** | 📋 **日志滚动**
+**WebSocket订阅** | **Rich界面** | **异步API** | **错误处理**
+**模拟模式** | **多账户支持** | **测试网络** | **配置灵活**
 
 ---
 
-**🎯 重点特性：实时日志滚动让您清晰了解系统运行状态，实现真正的透明监控！**
+💡 **提示**：首次使用建议先运行 `./run_demo.sh` 查看演示效果！
 
 

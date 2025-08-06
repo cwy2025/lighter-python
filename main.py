@@ -24,8 +24,9 @@ from display import LighterDisplay
 class LighterMonitor:
     """Lighter持仓监控主程序"""
     
-    def __init__(self, use_mock: bool = False):
+    def __init__(self, use_mock: bool = False, account_id: str = None):
         self.use_mock = use_mock
+        self.account_id = account_id or config.ACCOUNT_ID
         self.api_client = None
         self.ws_client = None
         self.display = LighterDisplay()
@@ -122,7 +123,7 @@ class LighterMonitor:
             self.display.add_log("DEBUG", "开始获取API数据...", "API")
             
             # 获取投资组合数据
-            portfolio_response = self.api_client.get_portfolio()
+            portfolio_response = self.api_client.get_portfolio(self.account_id)
             if portfolio_response.get('success', False):
                 old_pnl = self.last_portfolio_data.get('unrealized_pnl', 0)
                 self.last_portfolio_data = portfolio_response.get('data', {})
@@ -135,15 +136,17 @@ class LighterMonitor:
                 
                 self.display.add_log("SUCCESS", "投资组合数据获取成功", "API")
             else:
-                self.display.add_log("WARNING", "投资组合数据获取失败", "API")
+                error_msg = portfolio_response.get('error', '未知错误')
+                self.display.add_log("WARNING", f"投资组合数据获取失败: {error_msg}", "API")
             
             # 获取持仓数据
-            positions_response = self.api_client.get_positions()
+            positions_response = self.api_client.get_positions(self.account_id)
             if positions_response.get('success', False):
                 self.last_positions_data = positions_response.get('data', [])
                 self.display.add_log("SUCCESS", f"持仓数据获取成功 ({len(self.last_positions_data)}个持仓)", "API")
             else:
-                self.display.add_log("WARNING", "持仓数据获取失败", "API")
+                error_msg = positions_response.get('error', '未知错误')
+                self.display.add_log("WARNING", f"持仓数据获取失败: {error_msg}", "API")
             
             return True
             
@@ -190,12 +193,18 @@ class LighterMonitor:
         """初始化监控程序"""
         try:
             self.display.add_log("INFO", "正在初始化监控程序...", "SYSTEM")
+            self.display.add_log("INFO", f"使用账户ID: {self.account_id}", "SYSTEM")
+            self.display.add_log("INFO", f"API端点: {config.get_base_url()}", "SYSTEM")
             
             # 创建API客户端
             self.display.add_log("INFO", "创建API客户端...", "API")
-            self.api_client = create_api_client(use_mock=self.use_mock)
+            self.api_client = create_api_client(use_mock=self.use_mock, account_id=self.account_id)
             mode_text = "模拟模式" if self.use_mock else "实际模式"
-            self.display.add_log("SUCCESS", f"API客户端初始化成功 ({mode_text})", "API")
+            
+            if hasattr(self.api_client, 'account_id'):
+                self.display.add_log("SUCCESS", f"API客户端初始化成功 ({mode_text}, 账户ID: {self.api_client.account_id})", "API")
+            else:
+                self.display.add_log("SUCCESS", f"API客户端初始化成功 ({mode_text})", "API")
             
             # 创建WebSocket客户端
             self.display.add_log("INFO", "创建WebSocket客户端...", "WEBSOCKET")
@@ -291,6 +300,12 @@ class LighterMonitor:
             self.ws_client.disconnect()
             self.display.add_log("SUCCESS", "WebSocket连接已断开", "WEBSOCKET")
         
+        # 关闭API客户端
+        if self.api_client and hasattr(self.api_client, 'close'):
+            self.display.add_log("INFO", "关闭API客户端...", "API")
+            self.api_client.close()
+            self.display.add_log("SUCCESS", "API客户端已关闭", "API")
+        
         # 停止显示
         self.display.stop_live_display()
         
@@ -305,23 +320,34 @@ def main():
     parser = argparse.ArgumentParser(description='Lighter交易所持仓监控程序')
     parser.add_argument('--mock', action='store_true', 
                        help='使用模拟数据模式（用于演示）')
+    parser.add_argument('--account-id', type=str, 
+                       help='指定账户ID')
+    parser.add_argument('--testnet', action='store_true',
+                       help='使用测试网络')
     parser.add_argument('--config', type=str, 
                        help='配置文件路径')
     
     args = parser.parse_args()
+    
+    # 设置网络
+    if args.testnet:
+        config.USE_TESTNET = True
+        print("🧪 使用测试网络")
     
     # 检查是否需要使用模拟模式
     use_mock = args.mock
     if not use_mock:
         try:
             config.validate_config()
+            if not config.is_authenticated():
+                print("⚠️  未配置API密钥，将尝试访问公开数据")
         except ValueError as e:
             print(f"⚠️  配置验证失败: {e}")
             print("🔄 切换到模拟数据模式进行演示")
             use_mock = True
     
     # 创建并启动监控程序
-    monitor = LighterMonitor(use_mock=use_mock)
+    monitor = LighterMonitor(use_mock=use_mock, account_id=args.account_id)
     
     try:
         monitor.start()

@@ -1,8 +1,14 @@
 import asyncio
 import logging
+import sys
 from typing import Dict, Any, Optional
 import lighter
 from config import config
+
+try:
+    import nest_asyncio
+except ImportError:
+    nest_asyncio = None
 
 
 class LighterAPIClient:
@@ -40,17 +46,28 @@ class LighterAPIClient:
         self.transaction_api = lighter.TransactionApi(self.client)
     
     def _run_async(self, coro):
-        """在单独线程中运行异步函数"""
-        if self.loop is None or self.loop.is_closed():
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-        
-        if not self._running:
-            self._running = True
-            # 初始化异步客户端
-            self.loop.run_until_complete(self._initialize_async())
-        
-        return self.loop.run_until_complete(coro)
+        """在单独线程或已存在事件循环中运行异步函数，兼容 notebook/Jupyter/GUI 环境"""
+        try:
+            try:
+                loop = asyncio.get_running_loop()
+                # 已有事件循环在运行（如 Jupyter），需用 ensure_future
+                if nest_asyncio:
+                    nest_asyncio.apply()
+                fut = asyncio.ensure_future(coro)
+                # 兼容 notebook: 需用 run_until_complete
+                return asyncio.get_event_loop().run_until_complete(fut)
+            except RuntimeError:
+                # 没有事件循环，正常新建
+                if self.loop is None or self.loop.is_closed():
+                    self.loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(self.loop)
+                if not self._running:
+                    self._running = True
+                    self.loop.run_until_complete(self._initialize_async())
+                return self.loop.run_until_complete(coro)
+        except RuntimeError as e:
+            logging.error(f"[LighterAPIClient] asyncio 事件循环冲突: {e}\n\n建议：\n- 在 Jupyter/GUI 环境下请用异步API或安装 nest_asyncio (pip install nest_asyncio)\n- 或在主线程外运行本程序。\n")
+            raise
     
     def get_account_info(self, account_id: str = None) -> Dict[Any, Any]:
         """获取账户信息"""
@@ -216,15 +233,25 @@ class LighterAPIClient:
             return False
     
     def close(self):
-        """关闭客户端"""
+        """关闭客户端，安全关闭事件循环"""
         async def _close():
             if self.client:
                 await self.client.close()
-        
+        # 只在 loop 存在且未关闭且未在运行时关闭
         if self.loop and not self.loop.is_closed():
-            self.loop.run_until_complete(_close())
-            self.loop.close()
-        
+            try:
+                if not self.loop.is_running():
+                    self.loop.run_until_complete(_close())
+                    self.loop.close()
+                else:
+                    # 如果 loop 正在运行，直接调度关闭任务
+                    if nest_asyncio:
+                        nest_asyncio.apply()
+                    fut = asyncio.ensure_future(_close())
+                    self.loop.run_until_complete(fut)
+                    self.loop.stop()
+            except Exception as e:
+                logging.error(f"关闭事件循环时出错: {e}")
         self._running = False
 
 
